@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+data/*.db
+data/*.csv
+!data/manual_matches.example.csv
+
+.vscode/

@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if user %}Filmes para {{ user }}{% else %}Recomendações de filmes{% endif %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ECEEF1;
+      --ink: #151A22;
+      --muted: #566070;
+      --line: #CBD1DA;
+      --curtain: #A3162F;
+      --poster-bg: #D5D9E0;
+      --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      --text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14161B; --ink: #ECEEF2; --muted: #9AA3B2; --line: #2B303A;
+        --curtain: #E4506A; --poster-bg: #232730;
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-padding-top: 1rem; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font: 16px/1.55 var(--text); -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--curtain); outline-offset: 2px;
+    }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2.5rem); }
+
+    /* ---------- cabeçalho ---------- */
+    header.top { padding: clamp(2rem, 6vw, 4.5rem) 0 1.5rem; }
+    h1 {
+      font: 700 clamp(2.4rem, 8vw, 5.5rem)/0.95 var(--display);
+      letter-spacing: -0.03em; margin: 0 0 1rem; overflow-wrap: anywhere;
+    }
+    .lede { color: var(--muted); margin: 0; max-width: 60ch; }
+
+    /* ---------- perfil de gosto ---------- */
+    .taste { display: grid; gap: 2rem 3rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+             padding: 1.5rem 0 2rem; border-top: 1px solid var(--line); }
+    h2 { font: 700 1.15rem/1.2 var(--display); margin: 0 0 0.9rem; }
+    .bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
+    .bars li { display: grid; grid-template-columns: 9.5rem 1fr; align-items: center; gap: 0.75rem; font-size: 0.92rem; }
+    .bars .track { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+    .bars .track span { display: block; height: 100%; background: var(--curtain); width: calc(var(--w) * 100%); }
+    .facts-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.35rem; font-size: 0.95rem; }
+    .facts-list b { font-weight: 600; }
+
+    /* ---------- filtros ---------- */
+    .tools { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: end; padding: 1.1rem 0;
+             border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); position: sticky; top: 0;
+             background: var(--bg); z-index: 5; }
+    .tools label { display: grid; gap: 0.25rem; font-size: 0.82rem; color: var(--muted); }
+    .tools input, .tools select {
+      font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line);
+      border-radius: 4px; padding: 0.5rem 0.65rem; min-width: 11rem; height: 2.5rem;
+    }
+    .tools .count { margin-left: auto; font-size: 0.9rem; color: var(--muted); }
+
+    /* ---------- grade de filmes ---------- */
+    .grid { list-style: none; margin: 0; padding: 2rem 0 3rem; display: grid; gap: 2.5rem 1.75rem;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    .film[hidden] { display: none; }
+    .poster { display: block; aspect-ratio: 2 / 3; background: var(--poster-bg); border-radius: 4px 4px 0 0; overflow: hidden; }
+    .poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .poster .noimg { height: 100%; display: grid; place-items: center; padding: 1rem; text-align: center;
+                     font: 500 1rem/1.2 var(--display); color: var(--muted); }
+    /* a assinatura do design: a barra de afinidade colada na base do pôster */
+    .meter { height: 5px; background: var(--line); }
+    .meter span { display: block; height: 100%; width: var(--m); background: var(--curtain); }
+    .film h3 { font: 700 1.05rem/1.25 var(--display); margin: 0.7rem 0 0.15rem; }
+    .film h3 .year { font-weight: 500; color: var(--muted); margin-left: 0.25rem; }
+    .meta { margin: 0; font-size: 0.85rem; color: var(--muted); }
+    .match { margin: 0.5rem 0 0; font-size: 0.9rem; font-weight: 600; display: flex; flex-wrap: wrap; column-gap: 0.6rem; }
+    .match .meta { font-weight: 400; }
+    .nowrap { white-space: nowrap; }
+    .why { margin: 0.35rem 0 0; padding-left: 1.05rem; font-size: 0.85rem; color: var(--muted); }
+    .why li { margin-bottom: 0.2rem; }
+    details { margin-top: 0.5rem; font-size: 0.85rem; }
+    summary { cursor: pointer; color: var(--curtain); font-weight: 600; width: fit-content; }
+    details p { margin: 0.4rem 0 0; color: var(--muted); line-height: 1.5; }
+    .links { margin: 0.6rem 0 0; font-size: 0.85rem; display: flex; gap: 1rem; }
+
+    .empty { padding: 4rem 0; max-width: 56ch; }
+    .empty code { background: var(--line); padding: 0.1rem 0.4rem; border-radius: 3px; }
+    footer { border-top: 1px solid var(--line); padding: 1.5rem 0 3rem; font-size: 0.85rem; color: var(--muted); }
+    footer p { margin: 0 0 0.6rem; max-width: 80ch; }
+    footer ul { columns: 2 16rem; margin: 0.5rem 0 0; padding-left: 1.1rem; }
+
+    @media (max-width: 560px) {
+      .bars li { grid-template-columns: 7rem 1fr; }
+      .grid { grid-template-columns: repeat(2, 1fr); gap: 2rem 1rem; }
+      .tools { position: static; }
+      .tools .count { margin-left: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>{% if user %}Filmes para {{ user }}{% else %}Seus filmes{% endif %}</h1>
+    {% if updated_at %}
+      <p class="lede">Escolhidos a partir dos {{ watched_total }} filmes do seu histórico no Letterboxd.
+        Nenhum deles já foi assistido por você. Atualizado em {{ updated_at }}.</p>
+    {% endif %}
+  </header>
+
+  {% if not recs %}
+    <section class="empty">
+      <h2>Ainda não há recomendações</h2>
+      {% if updated_at %}
+        <p>A última atualização não encontrou filmes novos para sugerir. Tente aumentar
+           <code>MAX_SEED_FILMS</code> ou diminuir <code>MIN_VOTES</code> no arquivo <code>.env</code> e rode
+           <code>python main.py update</code> de novo.</p>
+      {% else %}
+        <p>Rode <code>python main.py update</code> no terminal para baixar o seu histórico e calcular as sugestões.
+           Depois recarregue esta página.</p>
+      {% endif %}
+    </section>
+  {% else %}
+
+    {% if summary.genres or summary.directors %}
+    <section class="taste" aria-label="Resumo do seu gosto">
+      {% if summary.genres %}
+      <div>
+        <h2>Gêneros que mais pesam no seu gosto</h2>
+        <ul class="bars">
+          {% for g in summary.genres %}
+            <li><span>{{ g.name }}</span><span class="track" aria-hidden="true"><span style="--w: {{ g.share }}"></span></span></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <div>
+        <h2>Seu histórico</h2>
+        <ul class="facts-list">
+          <li><b>{{ watched_total }}</b> filmes na base</li>
+          {% if summary.rated_count %}<li><b>{{ summary.rated_count }}</b> com nota, média <b>{{ "%.1f"|format(summary.avg_rating) }}</b> de 5</li>{% endif %}
+          {% if summary.liked_count %}<li><b>{{ summary.liked_count }}</b> com coração</li>{% endif %}
+          {% if summary.directors %}
+            <li>Diretores que você revê: {% for d in summary.directors %}{{ d.name }} ({{ d.films }}){% if not loop.last %}, {% endif %}{% endfor %}</li>
+          {% endif %}
+        </ul>
+      </div>
+    </section>
+    {% endif %}
+
+    <form class="tools" onsubmit="return false" role="search">
+      <label>Buscar por título
+        <input id="q" type="search" placeholder="Digite parte do nome" autocomplete="off">
+      </label>
+      <label>Gênero
+        <select id="genre">
+          <option value="">Todos</option>
+          {% for g in genres %}<option>{{ g }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Ordenar por
+        <select id="sort">
+          <option value="match">Afinidade</option>
+          <option value="rating">Nota no TMDB</option>
+          <option value="year">Mais recentes</option>
+        </select>
+      </label>
+      <span class="count" id="count" role="status" aria-live="polite">{{ recs|length }} filmes</span>
+    </form>
+
+    <ol class="grid" id="grid">
+      {% for r in recs %}
+      <li class="film" data-title="{{ (r.title ~ ' ' ~ r.original_title)|lower }}"
+          data-genres="{{ r.genres|join('|') }}" data-match="{{ r.match }}"
+          data-rating="{{ r.vote_average }}" data-year="{{ r.year }}" data-pos="{{ loop.index }}">
+        <a class="poster" href="https://letterboxd.com/tmdb/{{ r.id }}/" target="_blank" rel="noopener"
+           aria-label="Abrir {{ r.title }} no Letterboxd">
+          {% if r.poster_path %}
+            <img src="{{ poster_base }}{{ r.poster_path }}" alt="Pôster de {{ r.title }}" loading="lazy" width="342" height="513">
+          {% else %}
+            <div class="noimg">{{ r.title }}</div>
+          {% endif %}
+        </a>
+        <div class="meter" style="--m: {{ r.match }}%" aria-hidden="true"><span></span></div>
+        <h3>{{ r.title }}<span class="year">{{ r.year }}</span></h3>
+        <p class="meta">
+          {% if r.directors %}Direção: {{ r.directors|join(', ') }}<br>{% endif %}
+          {% if r.runtime %}{{ r.runtime }} min — {% endif %}{{ r.genres[:3]|join(', ') }}
+        </p>
+        <p class="match">{{ r.match }}% de afinidade <span class="meta nowrap">nota {{ r.vote_average }} no TMDB</span></p>
+        {% if r.reasons %}
+          <ul class="why">{% for reason in r.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+        {% endif %}
+        <details>
+          <summary>Sinopse</summary>
+          <p>{{ r.overview or "Sinopse indisponível." }}</p>
+        </details>
+        <p class="links">
+          <a href="https://letterboxd.com/tmdb/{{ r.id }}/" target="_blank" rel="noopener">Letterboxd</a>
+          <a href="https://www.themoviedb.org/movie/{{ r.id }}" target="_blank" rel="noopener">TMDB</a>
+        </p>
+      </li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+
+  <footer>
+    {% if unresolved %}
+      <details>
+        <summary>{{ unresolved|length }} filme(s) do seu histórico não foram identificados no TMDB</summary>
+        <p>Eles não entram no cálculo do gosto, mas continuam sendo excluídos das sugestões (por título e ano).
+           Para corrigir, adicione-os em <code>data/manual_matches.csv</code> (veja o README) e rode a atualização de novo.</p>
+        <ul>{% for u in unresolved %}<li>{{ u.title }}{% if u.year %} ({{ u.year }}){% endif %}</li>{% endfor %}</ul>
+      </details>
+    {% endif %}
+    <p>Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Não é afiliado ao Letterboxd.</p>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var grid = document.getElementById('grid');
+    if (!grid) return;
+    var cards = Array.prototype.slice.call(grid.children);
+    var q = document.getElementById('q'), genre = document.getElementById('genre'),
+        sort = document.getElementById('sort'), count = document.getElementById('count');
+
+    function apply() {
+      var text = q.value.trim().toLowerCase(), g = genre.value, shown = 0;
+      cards.forEach(function (c) {
+        var ok = (!text || c.dataset.title.indexOf(text) !== -1) &&
+                 (!g || c.dataset.genres.split('|').indexOf(g) !== -1);
+        c.hidden = !ok;
+        if (ok) shown++;
+      });
+      count.textContent = shown + (shown === 1 ? ' filme' : ' filmes');
+    }
+
+    function order() {
+      var by = sort.value;
+      cards.slice().sort(function (a, b) {
+        if (by === 'rating') return b.dataset.rating - a.dataset.rating;
+        if (by === 'year')   return b.dataset.year - a.dataset.year;
+        return a.dataset.pos - b.dataset.pos;   // afinidade = ordem original
+      }).forEach(function (c) { grid.appendChild(c); });
+    }
+
+    q.addEventListener('input', apply);
+    genre.addEventListener('change', apply);
+    sort.addEventListener('change', order);
+  })();
+</script>
+</body>
+</html>
